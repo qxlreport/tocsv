@@ -126,62 +126,67 @@ func processFile(filename string) error {
 
 	out := bufio.NewWriter(file)
 
+	p++
 	for r := range rows {
 		buf = buf[:0]
 		for col := range cols {
-			p++
 			b = m.At(int(p))
 			for b != ',' {
 				p++
 				b = m.At(int(p))
 			}
+
 			p++
+
 			b = m.At(int(p))
-			if b == '"' {
-				buf = append(buf, b)
+			for b == '\n' || b == '\r' || b == '\t' || b == ' ' {
 				p++
 				b = m.At(int(p))
-				inq := true
-				for {
-					if b == '"' {
-						if m.At(int(p+1)) == '"' {
-							buf = append(buf, '"')
-							p++
-						} else {
-							buf = append(buf, '"')
-							inq = false
-							break
-						}
-					}
-					buf = append(buf, b)
-					p++
-					b = m.At(int(p))
-					if b == ',' && !inq {
-						break
-					}
-				}
+			}
 
-			} else {
-				for b != ',' {
-					buf = append(buf, b)
-					p++
-					b = m.At(int(p))
+			inq := false
+
+		out:
+			for {
+				b = m.At(int(p))
+				switch b {
+				case '"':
+					{
+						buf = append(buf, b)
+						if inq {
+							inq = false
+						} else {
+							inq = true
+						}
+
+					}
+				case ',', '}':
+					if inq {
+						buf = append(buf, b)
+					} else {
+						p++
+						break out
+					}
+				default:
+					{
+						buf = append(buf, b)
+					}
 				}
+				p++
 			}
 			if col < cols-1 {
 				buf = append(buf, ';')
 			}
-			p++
 		}
 
 		if r == 0 {
 			buf = buf[:0]
 			s := strings.Join(fieldNames, ";")
-			fmt.Println(fieldNames)
 			buf = append(buf, []byte(s)...)
 		}
 
-		buf = append(buf, '\n')
+		buf = append(buf, '\r', '\n')
+
 		_, err = out.Write(buf)
 		if err != nil {
 			panic("ошибка записи")
@@ -197,6 +202,7 @@ func processFile(filename string) error {
 }
 
 func main() {
+	//processFile("1.txt")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Укажите хотя бы одно имя файла как аргумент.")
@@ -210,4 +216,5 @@ func main() {
 			continue
 		}
 	}
+
 }
